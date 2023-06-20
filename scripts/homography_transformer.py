@@ -20,10 +20,10 @@ from visual_servoing.msg import ConeLocation, ConeLocationPixel
 
 ######################################################
 ## DUMMY POINTS -- ENTER YOUR MEASUREMENTS HERE
-PTS_IMAGE_PLANE = [[-1, -1],
-                   [-1, -1],
-                   [-1, -1],
-                   [-1, -1]] # dummy points
+PTS_IMAGE_PLANE = [[309., 290.],
+                   [484., 287.],
+                   [211., 254.],
+                   [326., 251.]] # dummy points
 ######################################################
 
 # PTS_GROUND_PLANE units are in inches
@@ -31,10 +31,10 @@ PTS_IMAGE_PLANE = [[-1, -1],
 
 ######################################################
 ## DUMMY POINTS -- ENTER YOUR MEASUREMENTS HERE
-PTS_GROUND_PLANE = [[-1, -1],
-                    [-1, -1],
-                    [-1, -1],
-                    [-1, -1]] # dummy points
+PTS_GROUND_PLANE = [[24., 6.],
+                    [24., -6.],
+                    [36., 18.],
+                    [36., 6.]] # dummy points
 ######################################################
 
 METERS_PER_INCH = 0.0254
@@ -124,4 +124,6 @@ class HomographyTransformer:
 if __name__ == "__main__":
     rospy.init_node('homography_transformer')
     homography_transformer = HomographyTransformer()
+    x, y = homography_transformer.transformUvToXy(309,290)
+    homography_transformer.draw_marker(x, y, str(rospy.Time.now()))
     rospy.spin()

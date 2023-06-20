@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import cv2
 import imutils
 import numpy as np
@@ -45,6 +47,9 @@ def cd_sift_ransac(img, template):
 	kp1, des1 = sift.detectAndCompute(template,None)
 	kp2, des2 = sift.detectAndCompute(img,None)
 
+        #img_des = cv2.drawKeypoints(img, kp2, None)
+        #image_print(img_des)
+
 	# Find matches
 	bf = cv2.BFMatcher()
 	matches = bf.knnMatch(des1,des2,k=2)
@@ -62,14 +67,39 @@ def cd_sift_ransac(img, template):
 
 		# Create mask
 		M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+                print(M)
+                
 		matchesMask = mask.ravel().tolist()
 
-		h, w = template.shape
-		pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-
+		h1 = template.shape[0]
+                w1 = template.shape[1]
+		pts = np.float32([ [0,0],[0,h1-1],[w1-1,h1-1],[w1-1,0] ]).reshape(-1,1,2)
+                print(pts)
+                
 		########## YOUR CODE STARTS HERE ##########
+                
+                box_pts = cv2.perspectiveTransform(pts, M)
+                
 
-		x_min = y_min = x_max = y_max = 0
+                x, y, w, h = cv2.boundingRect(box_pts.reshape(-1, 2))
+                '''
+                #image_print(
+                cv2.rectangle(img, (x,y), (x+w, y+h), (0,0,255), 2)
+                combined = np.hstack((img, img))
+                
+                for i in range(len(good)):
+                    kpt = src_pts[i]
+                    kpi = dst_pts[i]
+                    pt1 = (np.int32(kpt.pt[0]), np.int32(kpt.pt[1]))
+                    pt2 = (np.int32(kpi.pt[0]), np.int32(kpi.pt[1]))
+                    cv2.line(combined, pt1, pt2, (0, 255, 0), 1)
+
+                image_print(combined)'''
+
+		x_min = x
+                y_min = y
+                x_max = x+w
+                y_max = y+h
 
 		########### YOUR CODE ENDS HERE ###########
 
@@ -101,7 +131,7 @@ def cd_template_matching(img, template):
 	(img_height, img_width) = img_canny.shape[:2]
 
 	# Keep track of best-fit match
-	best_match = None
+        best_match = 0
 
 	# Loop over different scales of image
 	for scale in np.linspace(1.5, .5, 50):
@@ -116,9 +146,33 @@ def cd_template_matching(img, template):
 		# Use OpenCV template matching functions to find the best match
 		# across template scales.
 
-		# Remember to resize the bounding box using the highest scoring scale
-		# x1,y1 pixel will be accurate, but x2,y2 needs to be correctly scaled
-		bounding_box = ((0,0),(0,0))
+                check_fit = cv2.matchTemplate(img_canny, resized_template, cv2.TM_CCOEFF_NORMED)
+
+                _, max_value, _, max_pt = cv2.minMaxLoc(check_fit)
+
+                if max_value > best_match:
+                    best_match = max_value
+
+		    # Remember to resize the bounding box using the highest scoring scale
+		    # x1,y1 pixel will be accurate, but x2,y2 needs to be correctly scaled
+		    bounding_box = (max_pt,(max_pt[0] + w, max_pt[1] + h))
 		########### YOUR CODE ENDS HERE ###########
 
+        #print(best_match)
+
+        #cv2.rectangle(img, bounding_box[0], bounding_box[1], (0,255,0), 2)
+        #image_print(img)
+
 	return bounding_box
+'''
+if __name__ == '__main__':
+    img = cv2.imread('test_images_localization/basement_fixed.png')
+    temp_read = cv2.imread('test_images_localization/map_scrap8.png')
+
+    image_print(temp_read)
+
+    temp = cv2.cvtColor(temp_read, cv2.COLOR_BGR2GRAY)
+    
+    cd_template_matching(img, temp)
+
+    #cd_sift_ransac(img, temp)'''
