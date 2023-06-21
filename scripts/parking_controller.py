@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from math import sqrt
+from math import sqrt,pi
 import rospy
 import numpy as np
 
@@ -26,6 +26,13 @@ class ParkingController():
         self.parking_distance = .75 # meters; try playing with this number!
         self.relative_x = 0
         self.relative_y = 0
+        # desired angle and velocity for parking 
+        self.DESIRED_VELOCITY = 0.3
+        self.DESIRED_ANGLE = 0.0
+        # parking distance threshold
+        self.DIST_THRESHOLD = 0.05
+        self.ANGLE_THRESHOLD = pi/8
+        
 
     def relative_cone_callback(self, msg):
         self.relative_x = msg.x_pos
@@ -42,13 +49,9 @@ class ParkingController():
         # Calculate the angle between the car's orientation and the cone
         angle = np.arctan2(self.relative_y, self.relative_x)
 
-        # Set desired angle and velocity for parking
-        desired_angle = 0.0  # radians (adjust as needed)
-        desired_velocity = 0.3  # meters/sec (adjust as needed)
-
         # Calculate errors
-        angle_error = desired_angle - angle
-        distance_error = self.parking_distance - distance
+        angle_error = angle - self.DESIRED_ANGLE
+        distance_error = distance - self.parking_distance
 
         # Define control gains
         angle_gain = 1.0
@@ -59,8 +62,13 @@ class ParkingController():
         velocity = distance_gain * distance_error
 
         # Limit velocity
-        if velocity > desired_velocity:
-            velocity = desired_velocity
+        if velocity > self.DESIRED_VELOCITY:
+            velocity = self.DESIRED_VELOCITY
+
+        # Stop if car is within parking distance/angle threshold
+        if abs(distance_error) <= self.DIST_THRESHOLD and abs(angle_error) <= self.ANGLE_THRESHOLD:
+            velocity = 0
+            steering_angle = 0
 
         # Publish desired steering angle and velocity
         drive_cmd.header.stamp = rospy.Time.now()
@@ -79,9 +87,9 @@ class ParkingController():
         error_msg = ParkingError()
 
         #################################
-        error_msg.relative_x = self.relative_x
-        error_msg.relative_y = self.relative_y
-        error_msg.distance = sqrt(self.relative_x ** 2 + self.relative_y ** 2)
+        error_msg.x_error = self.relative_x
+        error_msg.y_error = self.relative_y
+        error_msg.distance_error = sqrt(self.relative_x ** 2 + self.relative_y ** 2)
         # YOUR CODE HERE
         # Populate error_msg with relative_x, relative_y, sqrt(x^2+y^2)
 
@@ -96,3 +104,4 @@ if __name__ == '__main__':
         rospy.spin()
     except rospy.ROSInterruptException:
         pass
+
