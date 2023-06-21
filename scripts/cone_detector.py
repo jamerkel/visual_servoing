@@ -45,18 +45,38 @@ class ConeDetector():
         #################################
 
         image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
+        
+        if self.LineFollower == False:
+            box = cd_color_segmentation(image, None)
+        else:
+            x_min = 0.8 #if desired_distance is 0.5m
+            x_max = 1.0
+            mask_min = self.xToV(x_max)
+            mask_max = self.xToV(x_min)
 
-        box = cd_color_segmentation(image, None)
+            x = 0
+            y = mask_min
+            h = mask_max - mask_min
+            w = image.shape[:2][1]
+
+            mask = np.zeros(image.shape[:2], np.uint8)
+            mask[y:y+h,x:x+w] = 255
+
+            line_img = cv2.bitwise_and(image,image,mask = mask)
+
+            box = cd_color_segmentation(line_image,None)
+
         v = box[1][1]
-        u = (box[1][0]-box[0][0])/2
+        u = (box[1][0]+box[0][0])/2
 
-        pixel = (u, v)
-
-        self.cone_pub(pixel)
+        self.cone_pub.publish(u,v)
 
         debug_msg = self.bridge.cv2_to_imgmsg(image, "bgr8")
         self.debug_pub.publish(debug_msg)
 
+    def xToV(self,x):
+        v = 254.6*x^4 -1075.8*x^3 + 1727*x^2 - 1309.8*x +649.5
+        return(int(round(v)))
 
 
 
