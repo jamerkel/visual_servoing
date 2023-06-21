@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from math import sqrt
 import rospy
 import numpy as np
 
@@ -35,9 +36,36 @@ class ParkingController():
 
         # YOUR CODE HERE
         # Use relative position and your control law to set drive_cmd
+        # Calculate the distance from the car to the cone
+        distance = sqrt(self.relative_x ** 2 + self.relative_y ** 2)
 
+        # Calculate the angle between the car's orientation and the cone
+        angle = np.arctan2(self.relative_y, self.relative_x)
 
+        # Set desired angle and velocity for parking
+        desired_angle = 0.0  # radians (adjust as needed)
+        desired_velocity = 0.3  # meters/sec (adjust as needed)
 
+        # Calculate errors
+        angle_error = desired_angle - angle
+        distance_error = self.parking_distance - distance
+
+        # Define control gains
+        angle_gain = 1.0
+        distance_gain = 0.5
+
+        # Calculate control signals
+        steering_angle = angle_gain * angle_error
+        velocity = distance_gain * distance_error
+
+        # Limit velocity
+        if velocity > desired_velocity:
+            velocity = desired_velocity
+
+        # Publish desired steering angle and velocity
+        drive_cmd.header.stamp = rospy.Time.now()
+        drive_cmd.drive.steering_angle = steering_angle
+        drive_cmd.drive.speed = velocity
         #################################
 
         self.drive_pub.publish(drive_cmd)
@@ -51,7 +79,9 @@ class ParkingController():
         error_msg = ParkingError()
 
         #################################
-
+        error_msg.relative_x = self.relative_x
+        error_msg.relative_y = self.relative_y
+        error_msg.distance = sqrt(self.relative_x ** 2 + self.relative_y ** 2)
         # YOUR CODE HERE
         # Populate error_msg with relative_x, relative_y, sqrt(x^2+y^2)
 
