@@ -39,19 +39,19 @@ def cd_color_segmentation(img, template):
 
         # orange range in BGR
 
-        min_orange = np.array([0, 40, 175])
-        max_orange = np.array([35, 245, 255])
+        min_orange = np.array([0, 10, 145])
+        max_orange = np.array([105, 135, 255])
         
         #create and apply mask to original image
         mask = cv2.inRange(img, min_orange, max_orange)
 
         # from binary mask, find 'trace' of cone from contours
-        _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         cone = None
         for contour in contours:
             contour_area = cv2.contourArea(contour)
-            if contour_area >= 250: #pixel minimum to be considered a cone
+            if contour_area >= 100: #pixel minimum to be considered a cone
                 cone = contour
 
         if cone is not None:

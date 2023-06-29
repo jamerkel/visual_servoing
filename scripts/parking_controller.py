@@ -15,7 +15,7 @@ class ParkingController():
     """
     def __init__(self):
         rospy.Subscriber("/relative_cone", ConeLocation,
-            self.relative_cone_callback)
+                self.relative_cone_callback)
 
         DRIVE_TOPIC = rospy.get_param("~drive_topic") # set in launch file; different for simulator vs racecar
         self.drive_pub = rospy.Publisher(DRIVE_TOPIC,
@@ -23,15 +23,24 @@ class ParkingController():
         self.error_pub = rospy.Publisher("/parking_error",
             ParkingError, queue_size=10)
 
-        self.parking_distance = .75 # meters; try playing with this number!
-        self.relative_x = 0
-        self.relative_y = 0
+        self.parking_distance = 0.45 # meters; try playing with this number!
+        self.relative_x = 0.
+        self.relative_y = 0.
         # desired angle and velocity for parking 
-        self.DESIRED_VELOCITY = 0.3
+        self.DESIRED_VELOCITY = 1.0
         self.DESIRED_ANGLE = 0.0
-        # parking distance threshold
+        # parking thresholds
         self.DIST_THRESHOLD = 0.05
-        self.ANGLE_THRESHOLD = pi/8
+        self.ANGLE_THRESHOLD = np.pi/8.
+        # PID gains
+        self.kp_angle = 1.5
+        self.kp_dist = 0.5
+        self.kd_angle = 0.1
+        self.kd_dist = 0.05
+        self.last_angle_error = 0.0
+        self.last_dist_error = 0.0
+        self.t_last = rospy.Time.now()
+
         
 
     def relative_cone_callback(self, msg):
@@ -40,8 +49,6 @@ class ParkingController():
         drive_cmd = AckermannDriveStamped()
 
         #################################
-
-        # YOUR CODE HERE
         # Use relative position and your control law to set drive_cmd
         # Calculate the distance from the car to the cone
         distance = sqrt(self.relative_x ** 2 + self.relative_y ** 2)
@@ -52,23 +59,37 @@ class ParkingController():
         # Calculate errors
         angle_error = angle - self.DESIRED_ANGLE
         distance_error = distance - self.parking_distance
-
-        # Define control gains
-        angle_gain = 1.0
-        distance_gain = 0.5
-
+        t = rospy.Time.now()
         # Calculate control signals
-        steering_angle = angle_gain * angle_error
-        velocity = distance_gain * distance_error
+        steering_angle = self.kp_angle * angle_error + self.kd_angle * (angle_error - self.last_angle_error)/(t-self.t_last).to_sec()
+        velocity = 0.5 + self.kp_dist * distance_error + self.kd_dist * (distance_error - self.last_dist_error)/(t-self.t_last).to_sec()
 
         # Limit velocity
         if velocity > self.DESIRED_VELOCITY:
             velocity = self.DESIRED_VELOCITY
 
+        # Back up if cone is unreachable with maximum turn angle
+        # if (distance < self.BACK_UP_DIST_THRESHOLD) and (-0.34 < angle < 0.34):
+        #     velocity = -0.3
+        #     steering_angle = -0.3 if angle > 0 else 0.3
+
         # Stop if car is within parking distance/angle threshold
         if abs(distance_error) <= self.DIST_THRESHOLD and abs(angle_error) <= self.ANGLE_THRESHOLD:
-            velocity = 0
-            steering_angle = 0
+            velocity = 0.
+            steering_angle = 0.
+        
+        if distance < (self.parking_distance - self.DIST_THRESHOLD):
+            velocity = -1.
+            steering_angle = 0.
+        if self.relative_x < 0:
+            velocity = 0.
+            steering_angle = 0.
+
+
+        # Update last error for next iteration
+        self.last_angle_error = angle_error
+        self.last_dist_error = distance_error
+        self.t_last = t
 
         # Publish desired steering angle and velocity
         drive_cmd.header.stamp = rospy.Time.now()
@@ -87,10 +108,9 @@ class ParkingController():
         error_msg = ParkingError()
 
         #################################
-        error_msg.x_error = self.relative_x
+        error_msg.x_error = self.relative_x - self.parking_distance
         error_msg.y_error = self.relative_y
-        error_msg.distance_error = sqrt(self.relative_x ** 2 + self.relative_y ** 2)
-        # YOUR CODE HERE
+        error_msg.distance_error = sqrt(error_msg.x_error ** 2 + self.relative_y ** 2)
         # Populate error_msg with relative_x, relative_y, sqrt(x^2+y^2)
 
         #################################

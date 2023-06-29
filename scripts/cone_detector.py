@@ -38,7 +38,6 @@ class ConeDetector():
         # convert it to the car frame.
 
         #################################
-        # YOUR CODE HERE
         # detect the cone and publish its
         # pixel location in the image.
         # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -48,26 +47,24 @@ class ConeDetector():
         
         if self.LineFollower == False:
             box = cd_color_segmentation(image, None)
+
+            v = box[1][1]
+            u = (box[1][0]+box[0][0])/2
         else:
-            x_min = 0.8 #if desired_distance is 0.5m
-            x_max = 1.0
-            mask_min = self.xToV(x_max)
-            mask_max = self.xToV(x_min)
+            x_min = 0.51 #must be larger than desired_distance
+            x_max = 0.65
+            v_min = self.xToV(x_max)
+            v_max = self.xToV(x_min)
 
-            x = 0
-            y = mask_min
-            h = mask_max - mask_min
-            w = image.shape[:2][1]
+            mask = np.zeros_like(image)
+            mask[v_min:v_max, :] = 255
 
-            mask = np.zeros(image.shape[:2], np.uint8)
-            mask[y:y+h,x:x+w] = 255
+            line_img = cv2.bitwise_and(image, mask)
 
-            line_img = cv2.bitwise_and(image,image,mask = mask)
+            box = cd_color_segmentation(line_img,None)
 
-            box = cd_color_segmentation(line_image,None)
-
-        v = box[1][1]
-        u = (box[1][0]+box[0][0])/2
+            v = (box[1][1]+box[0][1])/2
+            u = (box[1][0]+box[0][0])/2
 
         self.cone_pub.publish(u,v)
 
@@ -75,8 +72,8 @@ class ConeDetector():
         self.debug_pub.publish(debug_msg)
 
     def xToV(self,x):
-        v = 254.6*x^4 -1075.8*x^3 + 1727*x^2 - 1309.8*x +649.5
-        return(int(round(v)))
+        v = 148.5*x**4 -592.9*x**3 + 916.7*x**2 - 699.5*x + 463.6
+        return int(round(v))
 
 
 
